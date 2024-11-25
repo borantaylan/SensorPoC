@@ -1,0 +1,33 @@
+version: '3.8'
+services:
+  webapi:
+    build:
+      context: .
+      dockerfile: ./SensorPoC.WebAPI/Dockerfile
+    ports:
+      - "8081:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:80
+      - DOTNET_USE_HTTPS=false # Disable HTTPS
+    networks:
+      - mynetwork  # Both services should be on the same network      
+  ui:
+    build:
+      context: .
+      dockerfile: ./SensorPoC.UI/Dockerfile
+    ports:
+      - "8080:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:80
+      - DOTNET_USE_HTTPS=false # Disable HTTPS
+      - API_URL=http://localhost:8081
+    depends_on:
+      - webapi
+    networks:
+      - mynetwork  # Both services should be on the same network
+
+networks:
+  mynetwork:
+    driver: bridge

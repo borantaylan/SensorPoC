@@ -1,0 +1,605 @@
+﻿@page
+@model OverviewModel
+@{
+    ViewData["Title"] = "Sensors List";
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"]</title>
+    <style>
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            width: 400px;
+            text-align: center;
+        }
+
+        .modal-content input {
+            margin: 10px 0;
+            padding: 8px;
+            width: 100%;
+        }
+
+        .modal-content button {
+            padding: 10px;
+            margin-top: 10px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        table, th, td {
+            border: 1px solid black;
+        }
+
+        th, td {
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            border: 1px solid #ccc;
+            padding: 20px;
+            z-index: 1001;
+            width: 80%; /* Increase width */
+            max-width: 800px; /* Optional: set a max width */
+            height: 70%; /* Increase height */
+            max-height: 600px; /* Optional: set a max height */
+            overflow: auto; /* Ensure content scrolls if it overflows */
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            border-radius: 8px; /* Optional: Rounded corners */
+        }
+
+        .close-button {
+            background-color: red;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Sensors</h1>
+    <table id="sensorsTable">
+        <thead>
+            <tr>
+                <th>Identity</th>
+                <th>Name</th>
+                <th>Location</th>
+                <th>Upper Limit</th>
+                <th>Lower Limit</th>
+                <th>Creation Time</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Sensors will be dynamically added here -->
+        </tbody>
+    </table>
+
+    <!-- Button to create a new sensor -->
+    <button id="createSensorButton">Create Sensor</button>
+    <!-- Modal for creating a sensor -->
+    <div id="createSensorModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h3>Create New Sensor</h3>
+
+            <label for="sensorIdentity">Identity (GUID):</label>
+            <input type="text" id="sensorIdentity" placeholder="Enter sensor GUID" required /><br />
+
+            <label for="sensorName">Name:</label>
+            <input type="text" id="sensorName" placeholder="Enter sensor name" required /><br />
+
+            <label for="sensorLocation">Location:</label>
+            <input type="text" id="sensorLocation" placeholder="Enter sensor location" required /><br />
+
+            <label for="upperLimit">Upper Limit:</label>
+            <input type="number" id="upperLimit" placeholder="Enter upper limit" required /><br />
+
+            <label for="lowerLimit">Lower Limit:</label>
+            <input type="number" id="lowerLimit" placeholder="Enter lower limit" required /><br />
+
+            <label for="creationTime">Creation Time:</label>
+            <input type="datetime-local" id="creationTime" required /><br />
+
+            <button id="saveSensorButton">Save Sensor</button>
+            <button id="cancelCreateButton">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Modal for updating a sensor -->
+    <div id="updateSensorModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h3>Update Sensor</h3>
+
+            <input type="hidden" id="updateSensorIdentity" />
+
+            <label for="updateSensorName">Name:</label>
+            <input type="text" id="updateSensorName" placeholder="Enter sensor name" required /><br />
+
+            <label for="updateSensorLocation">Location:</label>
+            <input type="text" id="updateSensorLocation" placeholder="Enter sensor location" required /><br />
+
+            <label for="updateUpperLimit">Upper Limit:</label>
+            <input type="number" id="updateUpperLimit" placeholder="Enter upper limit" required /><br />
+
+            <label for="updateLowerLimit">Lower Limit:</label>
+            <input type="number" id="updateLowerLimit" placeholder="Enter lower limit" required /><br />
+
+            <label for="updateCreationTime">Creation Time:</label>
+            <input type="datetime-local" id="updateCreationTime" required /><br />
+
+            <button id="saveUpdatedSensorButton">Save Changes</button>
+            <button id="cancelUpdateButton">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Delete confirmation modal -->
+    <div id="deleteConfirmationModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h3></h3>
+            <button id="confirmDeleteButton">Yes, Delete</button>
+            <button id="cancelDeleteButton">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Overlay for Popup -->
+    <div class="overlay" id="overlay">
+        <div class="popup" id="popup">
+            <h2>Sensor Details</h2>
+            <h3>Select Date Range</h3>
+            
+            <div class="form-group">
+                <label for="startDate">Start Date:</label>
+                <input type="datetime-local" id="startDate" required />
+            </div>
+            <div class="form-group">
+                <label for="endDate">End Date:</label>
+                <input type="datetime-local" id="endDate" required />
+            </div>
+            <div id="popupContent"></div>
+            <button class="fetch-button" id="fetchDataButton">Fetch Data</button>
+            <button class="close-button" id="closePopup">Close</button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        let myChart = null;
+        let selectedId = null; // To store the currently selected sensor ID
+        let selectedName = null; // To store the currently selected sensor name
+        let selectedLocation = null; // To store the currently selected sensor location
+        let selectedCreationTime = null; // To store the currently selected sensor location
+        let selectedUpperLimit = null; // To store the currently selected upper limit
+        let selectedLowerLimit = null; // To store the currently selected lower limit
+        var baseUrl = '@Model.ApiUrl';
+
+        // Function to load sensors from the API and populate the table
+        function loadSensors() {
+            fetch(`${baseUrl}/api/sensors`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    const sensorsTable = document.getElementById("sensorsTable").querySelector("tbody");
+                    sensorsTable.innerHTML = ""; // Clear the table before adding new data
+                    data.forEach(sensor => {
+                        const row = document.createElement("tr");
+
+                        row.innerHTML = `
+                            <td class="id">${sensor.identity}</td>
+                            <td class="name">${sensor.name}</td>
+                            <td class="location">${sensor.location}</td>
+                            <td class="upperLimit">${sensor.upperLimit}</td>
+                            <td class="lowerLimit">${sensor.lowerLimit}</td>
+                            <td class="creationTime">${new Date(sensor.creationTime).toISOString()}</td>
+                            <td>
+                                <button class="visualize-button" data-id="${sensor.identity}">Visualize</button>
+                                <button class="update-button" data-id="${sensor.identity}">Update</button>
+                                <button class="delete-button" data-id="${sensor.identity}">Delete</button>
+                            </td>
+                        `;
+
+                        sensorsTable.appendChild(row);
+                    });
+
+                    // Attach event listeners to the "Visualize" buttons
+                    document.querySelectorAll(".visualize-button").forEach(button => {
+                        button.addEventListener("click", handleVisualizeClick);
+                    });
+
+                    document.querySelectorAll(".update-button").forEach(button => {
+                        button.addEventListener("click", handleUpdateClick);
+                    });
+
+                    document.querySelectorAll(".delete-button").forEach(button => {
+                        button.addEventListener("click", handleDeleteClick);
+                    });
+                })
+                .catch(error => {
+                    console.error("Error fetching sensors:", error);
+                });
+        }
+
+        // Function to handle "Delete" button click
+        function handleDeleteClick(event)
+        {
+            // Get the parent row of the clicked button
+            const row = this.closest("tr");
+            selectedId = row.querySelector(".id").textContent; // Sensor ID
+            selectedName = row.querySelector(".name").textContent; // Sensor Name
+
+            // Show the update modal
+            document.querySelector("#deleteConfirmationModal .modal-content h3").textContent = `Are you sure you want to delete the sensor "${selectedName}"?`;
+            document.getElementById("deleteConfirmationModal").style.display = "block";
+
+        }
+
+        // Function to handle "Update" button click
+        function handleUpdateClick(event)
+        {
+            // Get the parent row of the clicked button
+            const row = this.closest("tr");
+
+            // Extract data from the row's cells
+            selectedId = row.querySelector(".id").textContent; // Sensor ID
+            selectedName = row.querySelector(".name").textContent; // Sensor Name
+            selectedLocation = row.querySelector(".location").textContent; // Sensor Name
+            selectedUpperLimit = parseFloat(row.querySelector(".upperLimit").textContent); // Upper limit
+            selectedLowerLimit = parseFloat(row.querySelector(".lowerLimit").textContent); // Lower limit
+            selectedCreationTime = row.querySelector(".creationTime").textContent; // Sensor Creation Time
+
+            document.getElementById("updateSensorIdentity").value = selectedId;
+            document.getElementById("updateSensorName").value = selectedName;
+            document.getElementById("updateSensorLocation").value = selectedLocation;
+            document.getElementById("updateUpperLimit").value = selectedUpperLimit;
+            document.getElementById("updateLowerLimit").value = selectedLowerLimit;
+            document.getElementById("updateCreationTime").value = new Date(selectedCreationTime).toISOString().slice(0, 16);
+
+            // Show the update modal
+            document.getElementById("updateSensorModal").style.display = "block";
+        }
+
+        // Function to handle "Visualize" button click
+        function handleVisualizeClick(event) {
+            // Get the parent row of the clicked button
+            const row = this.closest("tr");
+
+            // Extract data from the row's cells
+            selectedId = row.querySelector(".id").textContent; // Sensor ID
+            selectedName = row.querySelector(".name").textContent; // Sensor Name
+            selectedLocation = row.querySelector(".location").textContent; // Sensor Name
+            selectedUpperLimit = parseFloat(row.querySelector(".upperLimit").textContent); // Upper limit
+            selectedLowerLimit = parseFloat(row.querySelector(".lowerLimit").textContent); // Lower limit
+            selectedCreationTime = row.querySelector(".creationTime").textContent; // Sensor Creation time
+
+            // Show the overlay and popup
+            const overlay = document.getElementById("overlay");
+            const popupContent = document.getElementById("popupContent");
+            overlay.style.display = "flex";
+
+            // Clear popup content and reset date inputs
+            popupContent.innerHTML = "";
+            const now = new Date();
+            // Format the date into 'YYYY-MM-DDTHH:MM' format
+            document.getElementById("endDate").value = now.toISOString().slice(0, 16);
+            now.setMonth(now.getMonth()-1);
+            document.getElementById("startDate").value = now.toISOString().slice(0, 16);
+        }
+
+        function fetchData() {
+            const startDate = document.getElementById("startDate").value;
+            const endDate = document.getElementById("endDate").value;
+
+            if (!startDate || !endDate) {
+                alert("Please select both start and end dates.");
+                return;
+            }
+
+            const popupContent = document.getElementById("popupContent");
+            popupContent.innerHTML = "<canvas id='sensorChart'></canvas>"; // Add a canvas for Chart.js
+
+            const chartCanvas = document.getElementById("sensorChart").getContext("2d");
+
+            // Create the Chart.js instance (empty initially)
+            const chart = new Chart(chartCanvas, {
+                type: "line",
+                data: {
+                    labels: [], // X-axis labels (e.g., timestamps)
+                    datasets: [
+                        {
+                            label: "Sensor Data",
+                            data: [], // Y-axis data points
+                            borderColor: "rgba(75, 192, 192, 1)",
+                            backgroundColor: "rgba(75, 192, 192, 0.2)",
+                            borderWidth: 2,
+                            fill: true,
+                            pointBackgroundColor: function(context) {
+                                // This function dynamically sets the point color
+                                const value = context.raw; // The Y-axis value of the point
+                                if (value > selectedUpperLimit) {
+                                    return "red"; // Color points above the upper limit
+                                } else if (value < selectedLowerLimit) {
+                                    return "blue"; // Color points below the lower limit
+                                }
+                                return "green"; // Color points within the range
+                            },
+                        },
+                    ],
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: "Time",
+                            },
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: "Value",
+                            },
+                        },
+                    },
+                },
+            });
+
+            // Stream data from the server
+            fetch(`${baseUrl}/api/sensors/${selectedId}/query?from=${startDate}&to=${endDate}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Ensure the data is sorted by timestamp (ascending order)
+                    const sortedData = data.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+                    // Process the sorted data
+                    const labels = sortedData.map(item => new Date(item.timestamp).toDateString()); // X-axis labels
+                    const values = sortedData.map(item => item.value); // Y-axis data points
+
+                    // Update the chart with fetched data
+                    chart.data.labels = labels;
+                    chart.data.datasets[0].data = values;
+                    chart.update();
+                })
+                .catch(error => {
+                    console.error("Error fetching sensor data:", error);
+                    popupContent.innerHTML = "Failed to load sensor data.";
+                });
+        }
+
+        // Close popup when clicking the close button
+        document.getElementById("closePopup").addEventListener("click", () => {
+            document.getElementById("overlay").style.display = "none";
+        });
+
+        // Attach event listener to the "Fetch Data" button
+        document.getElementById("fetchDataButton").addEventListener("click", fetchData);
+
+        // Call the loadSensors function when the page is fully loaded
+        document.addEventListener("DOMContentLoaded", loadSensors);
+
+        // Create click button
+        document.getElementById("createSensorButton").addEventListener("click", function () {
+            // Show the modal when the "Create Sensor" button is clicked
+            document.getElementById("createSensorModal").style.display = "block";
+            document.getElementById("creationTime").value = new Date().toISOString().slice(0, 16);
+            document.getElementById("sensorIdentity").value = uuidv4();
+        });
+        // Create cancel button
+        document.getElementById("cancelCreateButton").addEventListener("click", function () {
+            // Close the modal when the cancel button is clicked
+            document.getElementById("createSensorModal").style.display = "none";
+        });
+
+        // Create save button
+        document.getElementById("saveSensorButton").addEventListener("click", function () {
+            // Collect the sensor data from the input fields
+            const sensorIdentity = document.getElementById("sensorIdentity").value;
+            const sensorName = document.getElementById("sensorName").value;
+            const sensorLocation = document.getElementById("sensorLocation").value;
+            const upperLimit = parseFloat(document.getElementById("upperLimit").value);
+            const lowerLimit = parseFloat(document.getElementById("lowerLimit").value);
+            const creationTime = new Date(document.getElementById("creationTime").value).toISOString().slice(0, 16);
+
+            // Validate the form fields
+            if (!sensorName || !sensorLocation || isNaN(upperLimit) || isNaN(lowerLimit) || !creationTime || !sensorIdentity) {
+                alert("Please fill in all the fields.");
+                return;
+            }
+
+            // Prepare the sensor data to be sent to the API
+            const newSensor = {
+                identity: sensorIdentity,  // User-provided identity (GUID)
+                name: sensorName,
+                location: sensorLocation,
+                upperLimit: upperLimit,
+                lowerLimit: lowerLimit,
+                creationTime: creationTime
+            };
+
+            // Make an API call to create the new sensor
+            fetch(`${baseUrl}/api/sensors`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(newSensor)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.text().then(errorResponse => {
+                        // Assuming the backend returns a JSON with a message field
+                        throw new Error(errorResponse.split('.')[1] || "An error occurred while deleting the sensor.");
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                alert("Sensor created successfully!");
+                document.getElementById("createSensorModal").style.display = "none";  // Close the modal
+                loadSensors();  
+            })
+            .catch(error => {
+                document.querySelector("#createSensorModal .modal-content h3").textContent = error.message;
+                document.querySelector("#createSensorModal .modal-content h3").style.color = "red";
+                console.error(error);
+            });
+        });
+
+        // Update popup 
+        // Close update modal if cancel is clicked
+        document.getElementById("cancelUpdateButton").addEventListener("click", function () {
+            document.getElementById("updateSensorModal").style.display = "none";
+        });
+
+        // Save updated sensor
+        document.getElementById("saveUpdatedSensorButton").addEventListener("click", function () {
+            const sensorId = document.getElementById("updateSensorIdentity").value;
+            const sensorName = document.getElementById("updateSensorName").value;
+            const sensorLocation = document.getElementById("updateSensorLocation").value;
+            const upperLimit = parseFloat(document.getElementById("updateUpperLimit").value);
+            const lowerLimit = parseFloat(document.getElementById("updateLowerLimit").value);
+            const creationTime = new Date(document.getElementById("updateCreationTime").value).toISOString();
+
+            // Validate the fields
+            if (!sensorName || !sensorLocation || isNaN(upperLimit) || isNaN(lowerLimit) || !creationTime) {
+                alert("Please fill in all the fields.");
+                return;
+            }
+
+            const updatedSensor = {
+                identity: sensorId,
+                name: sensorName,
+                location: sensorLocation,
+                upperLimit: upperLimit,
+                lowerLimit: lowerLimit,
+                creationTime: creationTime
+            };
+
+            // Send the updated sensor data to the API
+            fetch(`${baseUrl}/api/sensors`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(updatedSensor)
+            })
+            .then(response => {
+                if (!response.ok)
+                {
+                    return response.text().then(errorResponse => {
+                        // Assuming the backend returns a JSON with a message field
+                        throw new Error(errorResponse.split('.')[1] || "An error occurred while deleting the sensor.");
+                    });
+                    throw new Error("Failed to update sensor.");
+                }
+            })
+            .then(() => {
+                alert("Sensor updated successfully!");
+                document.getElementById("updateSensorModal").style.display = "none"; // Close the modal
+                loadSensors(); // Reload the sensors
+            })
+            .catch(error => {
+                document.querySelector("#updateSensorModal .modal-content h3").textContent = error.message;
+                document.querySelector("#updateSensorModal .modal-content h3").style.color = "red";
+                console.error(error);
+            });
+        });
+
+        // Delete popup
+        // Confirm delete
+        document.getElementById("confirmDeleteButton").onclick = function () {
+            fetch(`${baseUrl}/api/sensors/${selectedId}`, {
+                method: "DELETE",
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.text().then(errorResponse => {
+                        // Assuming the backend returns a JSON with a message field
+                        throw new Error(errorResponse || "An error occurred while deleting the sensor.");
+                    });
+                }
+
+            })
+            .then(() => {
+                alert("Sensor deleted successfully!");
+                document.getElementById("deleteConfirmationModal").style.display = "none"; // Close the modal
+                loadSensors(); // Reload the sensors list
+            })
+            .catch(error => {
+                document.querySelector("#deleteConfirmationModal .modal-content h3").textContent = error.message;
+                document.querySelector("#deleteConfirmationModal .modal-content h3").style.color = "red";
+                console.error(error);
+            });
+        };
+
+        // Close delete confirmation modal if cancel is clicked
+        document.getElementById("cancelDeleteButton").onclick = function () {
+            document.getElementById("deleteConfirmationModal").style.display = "none"; // Close the modal
+        };
+
+        function uuidv4() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'
+            .replace(/[xy]/g, function (c) {
+                const r = Math.random() * 16 | 0,
+                    v = c == 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+    </script>
+</body>
+</html>
